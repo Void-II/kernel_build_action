@@ -18,49 +18,37 @@ jobs:
           ref: test
           path: kernel_source
 
-      # Step 2: Patch kernel source with WireGuard
+      # Step 2: Configure Git identity (REQUIRED for patch script)
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      # Step 3: Patch kernel source with WireGuard
       - name: Patch Kernel with WireGuard Source
         run: |
-          # Clone the official WireGuard integration repository
           git clone https://git.zx2c4.com/android_kernel_wireguard.git /tmp/wg-patch
-          
-          # Run the patch script against your kernel source
           cd /tmp/wg-patch
           ./patch-kernel.sh $GITHUB_WORKSPACE/kernel_source
           
-          # Verify the WireGuard source directory was created
           echo "=== Verifying WireGuard source ==="
           ls -la $GITHUB_WORKSPACE/kernel_source/net/wireguard/ | head -5
-          
-          # Verify Kconfig and Makefile were patched
-          echo "=== Checking net/Kconfig ==="
           grep -i wireguard $GITHUB_WORKSPACE/kernel_source/net/Kconfig || echo "NOT FOUND in Kconfig"
-          echo "=== Checking net/Makefile ==="
           grep -i wireguard $GITHUB_WORKSPACE/kernel_source/net/Makefile || echo "NOT FOUND in Makefile"
 
-      # Step 3: Verify defconfig still has the WireGuard config line
+      # Step 4: Verify defconfig
       - name: Verify Defconfig Edits
         run: |
           DEFCONFIG="kernel_source/arch/arm64/configs/a71_eur_open_defconfig"
-          
-          if [ ! -f "$DEFCONFIG" ]; then
-            echo "ERROR: Defconfig not found at $DEFCONFIG"
-            exit 1
-          fi
-          
-          echo "=== Checking for CONFIG_WIREGUARD ==="
           grep "CONFIG_WIREGUARD" "$DEFCONFIG" || echo "NOT FOUND!"
-          
-          echo "=== Checking for CONFIG_LOCALVERSION ==="
           grep "CONFIG_LOCALVERSION" "$DEFCONFIG" || echo "NOT FOUND!"
-          
           if ! grep -q 'CONFIG_WIREGUARD=y' "$DEFCONFIG"; then
             echo "ERROR: CONFIG_WIREGUARD=y is missing from defconfig. Aborting."
             exit 1
           fi
           echo "Defconfig verified. Proceeding to build."
 
-      # Step 4: Build the kernel
+      # Step 5: Build the kernel
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
