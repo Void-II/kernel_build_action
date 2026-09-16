@@ -1,30 +1,64 @@
-# A simple action usage
-name: Build Kernel
+name: Build A715F Kernel with WireGuard
 on:
   workflow_dispatch:
 
 jobs:
-  Build-Kernel:
-    strategy:
-      fail-fast: false
-    runs-on: ubuntu-latest
+  build-kernel:
+    name: Build Kernel
+    runs-on: ubuntu-22.04
     permissions:
-      contents: read
+      contents: write
 
     steps:
+      # Step 1: Checkout the kernel source locally
+      - name: Checkout Kernel Source
+        uses: actions/checkout@v4
+        with:
+          repository: Void-II/A715F-Kernel-Stock
+          ref: stock
+          path: kernel_source
+
+      # Step 2: Add CONFIG_WIREGUARD=y to the defconfig
+      - name: Enable WireGuard in Defconfig
+        run: |
+          DEFCONFIG="kernel_source/arch/arm64/configs/a71_eur_open_defconfig"
+
+          if [ ! -f "$DEFCONFIG" ]; then
+            echo "ERROR: Defconfig not found at $DEFCONFIG"
+            exit 1
+          fi
+
+          echo "Found defconfig: $DEFCONFIG"
+
+          # Remove any existing CONFIG_WIREGUARD lines first
+          sed -i '/CONFIG_WIREGUARD/d' "$DEFCONFIG"
+
+          # Add WireGuard config lines
+          {
+            echo ""
+            echo "#"
+            echo "# WireGuard"
+            echo "#"
+            echo "CONFIG_WIREGUARD=y"
+          } >> "$DEFCONFIG"
+
+          echo "Successfully added CONFIG_WIREGUARD=y"
+          echo "--- Last 10 lines of defconfig ---"
+          tail -n 10 "$DEFCONFIG"
+
+      # Step 3: Build the kernel
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/AcmeUI-Devices/android_kernel_xiaomi_cas
-          kernel-dir: msm-4.19
-          kernel-branch: taffy
-          config: cas_defconfig
+          kernel-url: ./kernel_source/
+          config: a71_eur_open_defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
-          ksu: true
-          ksu-version: main
           android-version: 12
           aosp-clang-version: r383902
           disable-lto: true
           anykernel3: true
+          ksu: false
+          release: true
+          access-token: ${{ secrets.GITHUB_TOKEN }}
