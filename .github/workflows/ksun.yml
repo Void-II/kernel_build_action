@@ -3,7 +3,7 @@ name: Build A715F Kernel + KernelSU-Next
 on:
   workflow_dispatch:
   push:
-    branches: [ ksu-next ]
+    branches: [ ksun ]
 
 jobs:
   build:
@@ -60,52 +60,7 @@ jobs:
           git clone --depth 1 https://github.com/osm0sis/AnyKernel3.git AK3
           rm -rf AK3/.git
           cp out/arch/arm64/boot/Image AK3/Image
-          cat > AK3/anykernel.sh << 'ANYKERNEL_EOF'
-### AnyKernel3 Ramdisk Mod Script
-## for Samsung Galaxy A71 (A715F)
-
-### AnyKernel setup
-# global properties
-properties() { '
-kernel.string=KernelSU-Next Kernel for A715F
-do.devicecheck=1
-do.modules=0
-do.systemless=1
-do.cleanup=1
-do.cleanuponabort=0
-device.name1=a71
-device.name2=a71q
-device.name3=a715f
-device.name4=
-device.name5=
-supported.versions=
-supported.patchlevels=
-supported.vendorpatchlevels=
-'; } # end properties
-
-
-### AnyKernel install
-## boot files attributes
-boot_attributes() {
-set_perm_recursive 0 0 755 644 $RAMDISK/*;
-set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
-} # end attributes
-
-# boot shell variables
-BLOCK=auto;
-IS_SLOT_DEVICE=auto;
-RAMDISK_COMPRESSION=auto;
-PATCH_VBMETA_FLAG=auto;
-
-# import functions/variables and setup patching - see for reference (DO NOT REMOVE)
-. tools/ak3-core.sh;
-
-# boot install
-dump_boot;
-
-write_boot;
-## end boot install
-ANYKERNEL_EOF
+          cp anykernel.sh AK3/anykernel.sh
           cd AK3 && zip -r9 ../A715F-KSU-Next-$(date +%Y%m%d).zip . -x ".git/*"
 
       - name: Upload artifact
